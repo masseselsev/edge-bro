@@ -22,6 +22,17 @@ const SOURCE_FIELDS: { key: string; labelKey: string; thresholds?: { key: string
   },
 ];
 
+interface AlertRow {
+  id: number;
+  module: string;
+  node_hostname: string | null;
+  severity: 'WATCH' | 'ALERT';
+  status: 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED';
+  title: string;
+  first_seen: string;
+  last_seen: string;
+}
+
 export default function AlertsTab({ currentUser }: AlertsTabProps) {
   const { t } = useTranslation();
   // The *entire* settings object -- POST /api/settings replaces every
@@ -136,12 +147,102 @@ export default function AlertsTab({ currentUser }: AlertsTabProps) {
     loadCredentialPasswords(fullSettings?.bootstrap_credentials || []);
   }, [fullSettings, loadCredentialPasswords]);
 
+  // Alert history section -- consumes GET /api/alerts (all statuses) and
+  // POST /api/alerts/{id}/acknowledge. NotificationBell.tsx covers the
+  // OPEN-only quick view off the same endpoint; this is the full history
+  // with status filtering, not a duplicate of the bell's own state.
+  const [alerts, setAlerts] = useState<AlertRow[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [ackingId, setAckingId] = useState<number | null>(null);
+
+  const fetchAlerts = useCallback(() => {
+    const qs = statusFilter ? `?status=${statusFilter}` : '';
+    fetch(`/api/alerts${qs}`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then(setAlerts)
+      .catch(() => setAlerts([]));
+  }, [statusFilter]);
+
+  useEffect(() => {
+    fetchAlerts();
+  }, [fetchAlerts]);
+
+  const handleAcknowledge = async (id: number) => {
+    setAckingId(id);
+    try {
+      const res = await fetch(`/api/alerts/${id}/acknowledge`, { method: 'POST' });
+      if (res.ok) fetchAlerts();
+    } finally {
+      setAckingId(null);
+    }
+  };
+
   if (loading) {
     return <div className="text-xs text-zinc-500 p-4">{t('loading') || 'Loading...'}</div>;
   }
 
   return (
     <div className="space-y-6">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold text-zinc-100">{t('alertHistoryHeading')}</h3>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-2 py-1 rounded bg-zinc-950 border border-zinc-800 text-xs text-zinc-300"
+          >
+            <option value="">{t('alertFilterAll')}</option>
+            <option value="OPEN">{t('alertFilterOpen')}</option>
+            <option value="ACKNOWLEDGED">{t('alertFilterAcknowledged')}</option>
+            <option value="RESOLVED">{t('alertFilterResolved')}</option>
+          </select>
+        </div>
+        {alerts.length === 0 ? (
+          <p className="text-xs text-zinc-500 py-4 text-center">{t('alertHistoryEmpty')}</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-zinc-500 border-b border-zinc-800">
+                  <th className="py-1.5 pr-3">{t('alertColSeverity')}</th>
+                  <th className="py-1.5 pr-3">{t('alertColModule')}</th>
+                  <th className="py-1.5 pr-3">{t('alertColNode')}</th>
+                  <th className="py-1.5 pr-3">{t('alertColTitle')}</th>
+                  <th className="py-1.5 pr-3">{t('alertColFirstSeen')}</th>
+                  <th className="py-1.5"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {alerts.map((a) => (
+                  <tr key={a.id} className="border-b border-zinc-800/40 last:border-0">
+                    <td className="py-1.5 pr-3">
+                      <span className={a.severity === 'ALERT' ? 'text-rose-400 font-bold' : 'text-amber-400 font-bold'}>
+                        {a.severity}
+                      </span>
+                    </td>
+                    <td className="py-1.5 pr-3 text-zinc-400">{a.module}</td>
+                    <td className="py-1.5 pr-3 text-zinc-400 font-mono">{a.node_hostname || '—'}</td>
+                    <td className="py-1.5 pr-3 text-zinc-200">{a.title}</td>
+                    <td className="py-1.5 pr-3 text-zinc-500">{new Date(a.first_seen).toLocaleString()}</td>
+                    <td className="py-1.5">
+                      {a.status === 'OPEN' && (
+                        <button
+                          type="button"
+                          onClick={() => handleAcknowledge(a.id)}
+                          disabled={ackingId === a.id}
+                          className="px-2 py-0.5 rounded bg-zinc-800 hover:bg-emerald-500/20 hover:text-emerald-400 text-zinc-400 text-[10px] font-semibold disabled:opacity-50"
+                        >
+                          {t('alertAcknowledge')}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 space-y-3">
         <h3 className="text-sm font-bold text-zinc-100">{t('alertSourcesHeading')}</h3>
         {credentialsLoadError && (
