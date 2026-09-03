@@ -16,7 +16,8 @@ from core import repo_paths
 from core.alerts import AlertCandidate
 from core.alert_config import get as get_alert_config
 
-#: Matches the ISO cache's host volume mount point (docker-compose.yml).
+#: Container-side mount point for the ISO cache volume (docker-compose.yml);
+#: the host-side path behind it is whatever ISO_CACHE_HOST_PATH resolves to.
 ISO_CACHE_PATH = "/opt/data/iso_cache"
 
 

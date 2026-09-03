@@ -354,8 +354,34 @@ def test_storage_respects_the_disabled_flag(db_session):
     settings = models.Settings(alert_config={"storage": {"enabled": False}})
     db_session.add(settings)
     db_session.commit()
+    with patch("core.alert_sources.storage.repo_paths.all_shard_paths", return_value=["/data/borg/fleet"]):
+        assert storage_source.evaluate(db_session) == []
+
+
+def test_storage_flags_the_iso_cache_when_it_exists_and_is_low(db_session):
+    # No shards low on space -- the only candidate must come from the ISO
+    # cache branch (`os.path.isdir(ISO_CACHE_PATH)` taken as True), proving
+    # that branch is actually exercised and identifies the right path.
+    with patch("core.alert_sources.storage.repo_paths.all_shard_paths", return_value=[]), \
+         patch("os.path.isdir", return_value=True), \
+         patch("shutil.disk_usage", return_value=_usage(100, 2)):  # 2% free
+        candidates = storage_source.evaluate(db_session)
+
+    assert len(candidates) == 1
+    candidate = candidates[0]
+    assert candidate.severity == "ALERT"
+    assert candidate.dedup_key == f"storage:{storage_source.ISO_CACHE_PATH}"
+    assert candidate.detail["path"] == storage_source.ISO_CACHE_PATH
+    assert "ISO cache" in candidate.title
+
+
+def test_storage_ignores_a_path_reporting_zero_total_space(db_session):
+    # A path with total==0 (unmounted/bogus) must be skipped, not treated as
+    # 0% or 100% free -- either would be a real bug (spurious ALERT, or a
+    # silently hidden full filesystem).
     with patch("core.alert_sources.storage.repo_paths.all_shard_paths", return_value=["/data/borg/fleet"]), \
-         patch("shutil.disk_usage", return_value=_usage(100, 1)):
+         patch("os.path.isdir", return_value=False), \
+         patch("shutil.disk_usage", return_value=_usage(0, 0)):
         assert storage_source.evaluate(db_session) == []
 
 
