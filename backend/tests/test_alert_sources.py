@@ -9,6 +9,7 @@ import models
 from database import Base
 from core.alert_sources import smart as smart_source
 from core.alert_sources import thermal as thermal_source
+from core.alert_sources import stale_backup as stale_backup_source
 from core.alert_sources import SOURCES
 from core.clock import utcnow
 
@@ -39,6 +40,16 @@ def make_node(db, hostname="node-1", cpu="11th Gen Intel(R) Core(TM) i5-1145G7E 
     db.commit()
     db.refresh(node)
     return node
+
+
+def make_group(db, name="group-1"):
+    # interval has no column default and is NOT NULL -- must be supplied
+    # explicitly or the commit fails the schema's constraint.
+    group = models.BackupGroup(name=name, interval="weekly")
+    db.add(group)
+    db.commit()
+    db.refresh(group)
+    return group
 
 
 def add_smart(db, node, grade, device="/dev/sda"):
@@ -164,5 +175,89 @@ def test_thermal_source_returns_nothing_when_disabled(db_session):
     assert thermal_source.evaluate(db_session) == []
 
 
-def test_registry_has_both_sources():
-    assert set(SOURCES.keys()) == {"smart", "thermal"}
+def test_stale_backup_flags_a_node_past_the_threshold(db_session):
+    group = make_group(db_session)
+    node = make_node(db_session)
+    node.group_id = group.id
+    node.status = "READY"
+    node.last_backup = utcnow() - timedelta(days=10)
+    db_session.commit()
+
+    candidates = stale_backup_source.evaluate(db_session)
+
+    assert len(candidates) == 1
+    assert candidates[0].module == "stale_backup"
+    assert candidates[0].node_id == node.id
+    assert candidates[0].severity == "ALERT"
+
+
+def test_stale_backup_ignores_a_node_within_the_threshold(db_session):
+    group = make_group(db_session)
+    node = make_node(db_session)
+    node.group_id = group.id
+    node.status = "READY"
+    node.last_backup = utcnow() - timedelta(days=1)
+    db_session.commit()
+
+    assert stale_backup_source.evaluate(db_session) == []
+
+
+def test_stale_backup_ignores_a_paused_node(db_session):
+    group = make_group(db_session)
+    node = make_node(db_session)
+    node.group_id = group.id
+    node.status = "READY"
+    node.backup_paused = True
+    node.last_backup = utcnow() - timedelta(days=30)
+    db_session.commit()
+
+    assert stale_backup_source.evaluate(db_session) == []
+
+
+def test_stale_backup_ignores_a_node_with_no_group(db_session):
+    node = make_node(db_session)
+    node.status = "READY"
+    node.last_backup = utcnow() - timedelta(days=30)
+    db_session.commit()
+
+    assert stale_backup_source.evaluate(db_session) == []
+
+
+def test_stale_backup_flags_a_ready_node_that_never_backed_up(db_session):
+    group = make_group(db_session)
+    node = make_node(db_session)
+    node.group_id = group.id
+    node.status = "READY"
+    db_session.commit()
+
+    candidates = stale_backup_source.evaluate(db_session)
+
+    assert len(candidates) == 1
+    assert "Never backed up" in candidates[0].title
+
+
+def test_stale_backup_ignores_a_node_still_being_bootstrapped(db_session):
+    group = make_group(db_session)
+    node = make_node(db_session)
+    node.group_id = group.id
+    node.status = "NEEDS_BOOTSTRAP"
+    db_session.commit()
+
+    assert stale_backup_source.evaluate(db_session) == []
+
+
+def test_stale_backup_respects_the_disabled_flag(db_session):
+    group = make_group(db_session)
+    node = make_node(db_session)
+    node.group_id = group.id
+    node.status = "READY"
+    node.last_backup = utcnow() - timedelta(days=30)
+    settings = models.Settings(alert_config={"stale_backup": {"enabled": False}})
+    db_session.add(settings)
+    db_session.commit()
+
+    assert stale_backup_source.evaluate(db_session) == []
+
+
+def test_registry_has_all_three_sources():
+    assert set(SOURCES.keys()) == {"smart", "thermal", "stale_backup"}
