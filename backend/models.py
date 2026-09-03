@@ -76,6 +76,13 @@ class Settings(Base):
     # routers/settings.py's update_settings.
     allow_admin_key_terminal_access = Column(Boolean, default=False, nullable=False)
 
+    # One sub-object per alert source ({"enabled": bool, ...thresholds}),
+    # e.g. {"stale_backup": {"enabled": true, "days": 3}}. Missing keys mean
+    # "use that source's default" -- see core/alert_config.py. Nullable
+    # rather than defaulting to {} so a fresh install's row is
+    # indistinguishable from one where nobody has touched this yet.
+    alert_config = Column(JSON, nullable=True)
+
 
 
 

@@ -1,5 +1,5 @@
 """Global orchestrator settings and the sub-objects they nest."""
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -63,6 +63,9 @@ class SettingsBase(BaseModel):
     # admin submitting a settings form that happens to carry a different
     # value here cannot change it.
     allow_admin_key_terminal_access: bool = Field(default=False)
+    # Per-source alert engine config: {"stale_backup": {"enabled": true, "days": 3}, ...}.
+    # See core/alert_config.py for the defaults each source falls back to.
+    alert_config: Optional[Dict[str, Any]] = Field(default=None)
 
 
     @field_validator('server_name')

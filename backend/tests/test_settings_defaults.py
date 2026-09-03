@@ -111,6 +111,14 @@ def test_new_settings_row_gets_the_curated_default_exclusions(db_session):
     assert len(settings.global_exclusions) == 19
 
 
+def test_alert_config_defaults_to_none(db_session):
+    settings = models.Settings()
+    db_session.add(settings)
+    db_session.commit()
+    db_session.refresh(settings)
+    assert settings.alert_config is None
+
+
 def test_only_superadmin_can_change_admin_key_terminal_access():
     """Not the module's `db_session` fixture: that engine is a bare
     `sqlite:///:memory:` with no `poolclass=StaticPool`, so SQLAlchemy's
