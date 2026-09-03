@@ -10,6 +10,7 @@ from database import Base
 from core.alert_sources import smart as smart_source
 from core.alert_sources import thermal as thermal_source
 from core.alert_sources import stale_backup as stale_backup_source
+from core.alert_sources import node_offline as node_offline_source
 from core.alert_sources import SOURCES
 from core.clock import utcnow
 
@@ -259,5 +260,54 @@ def test_stale_backup_respects_the_disabled_flag(db_session):
     assert stale_backup_source.evaluate(db_session) == []
 
 
-def test_registry_has_all_three_sources():
-    assert set(SOURCES.keys()) == {"smart", "thermal", "stale_backup"}
+def test_node_offline_opens_at_watch_with_no_prior_alert(db_session):
+    node = make_node(db_session)
+    node.status = "OFFLINE"
+    db_session.commit()
+
+    candidates = node_offline_source.evaluate(db_session)
+
+    assert len(candidates) == 1
+    assert candidates[0].severity == "WATCH"
+    assert candidates[0].dedup_key == f"node_offline:{node.id}"
+
+
+def test_node_offline_escalates_to_alert_past_the_threshold(db_session):
+    node = make_node(db_session)
+    node.status = "OFFLINE"
+    db_session.commit()
+    # Simulate a prior sweep having already opened this alert 10 days ago.
+    db_session.add(models.Alert(
+        module="node_offline", node_id=node.id, dedup_key=f"node_offline:{node.id}",
+        severity="WATCH", status="OPEN",
+        title="Offline: node-1",
+        first_seen=utcnow() - timedelta(days=10), last_seen=utcnow() - timedelta(days=10),
+    ))
+    db_session.commit()
+
+    candidates = node_offline_source.evaluate(db_session)
+
+    assert len(candidates) == 1
+    assert candidates[0].severity == "ALERT"
+
+
+def test_node_offline_ignores_a_node_that_is_not_offline(db_session):
+    node = make_node(db_session)
+    node.status = "READY"
+    db_session.commit()
+
+    assert node_offline_source.evaluate(db_session) == []
+
+
+def test_node_offline_respects_the_disabled_flag(db_session):
+    node = make_node(db_session)
+    node.status = "OFFLINE"
+    settings = models.Settings(alert_config={"node_offline": {"enabled": False}})
+    db_session.add(settings)
+    db_session.commit()
+
+    assert node_offline_source.evaluate(db_session) == []
+
+
+def test_registry_has_all_four_sources():
+    assert set(SOURCES.keys()) == {"smart", "thermal", "stale_backup", "node_offline"}

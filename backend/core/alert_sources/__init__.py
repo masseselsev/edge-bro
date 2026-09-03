@@ -10,9 +10,11 @@ from core.alerts import AlertCandidate
 from core.alert_sources import smart as smart_source
 from core.alert_sources import thermal as thermal_source
 from core.alert_sources import stale_backup as stale_backup_source
+from core.alert_sources import node_offline as node_offline_source
 
 SOURCES: Dict[str, Callable[[Session], List[AlertCandidate]]] = {
     "smart": smart_source.evaluate,
     "thermal": thermal_source.evaluate,
     "stale_backup": stale_backup_source.evaluate,
+    "node_offline": node_offline_source.evaluate,
 }
