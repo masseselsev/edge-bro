@@ -128,5 +128,41 @@ def test_thermal_source_produces_no_candidate_when_insufficient_data(db_session)
     assert candidates == []
 
 
+def test_smart_source_returns_nothing_when_disabled(db_session):
+    node = make_node(db_session)
+    add_smart(db_session, node, grade="REPLACE")
+    settings = models.Settings(alert_config={"smart": {"enabled": False}})
+    db_session.add(settings)
+    db_session.commit()
+
+    assert smart_source.evaluate(db_session) == []
+
+
+def test_thermal_source_returns_nothing_when_disabled(db_session):
+    # Create a cohort of nodes with multiple fits each so thermal comparison triggers
+    now = utcnow()
+    bad_node = models.Node(hostname="bad-node", ip_address="10.0.0.100", ssh_port=2222,
+                           cpu_info="11th Gen Intel(R) Core(TM) i5-1145G7E @ 2.60GHz")
+    db_session.add(bad_node)
+    db_session.flush()
+    for i in range(3):
+        add_fit(db_session, bad_node, theta=3.0, rejection="OK", days_ago=i+1)
+
+    # Add normal peers so the outlier is detectable (need MIN_COHORT_SIZE=5)
+    for peer_idx in range(4):
+        peer = models.Node(hostname=f"peer-{peer_idx}", ip_address=f"10.0.0.{101+peer_idx}",
+                          ssh_port=2222, cpu_info="11th Gen Intel(R) Core(TM) i5-1145G7E @ 2.60GHz")
+        db_session.add(peer)
+        db_session.flush()
+        for i in range(3):
+            add_fit(db_session, peer, theta=1.0, rejection="OK", days_ago=i+1)
+
+    settings = models.Settings(alert_config={"thermal": {"enabled": False}})
+    db_session.add(settings)
+    db_session.commit()
+
+    assert thermal_source.evaluate(db_session) == []
+
+
 def test_registry_has_both_sources():
     assert set(SOURCES.keys()) == {"smart", "thermal"}

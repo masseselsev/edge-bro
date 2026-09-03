@@ -24,6 +24,10 @@ _ALERT_STATUSES = {"WATCH", "ALERT"}
 
 
 def evaluate(db: Session) -> List[AlertCandidate]:
+    from core.alert_config import get as get_alert_config
+    if not get_alert_config(db, "thermal")["enabled"]:
+        return []
+
     now = utcnow()
     context = build_thermal_context(db, now)
 

@@ -16,6 +16,10 @@ _SEVERITY_BY_GRADE = {"WATCH": "WATCH", "REPLACE": "ALERT"}
 
 
 def evaluate(db: Session) -> List[AlertCandidate]:
+    from core.alert_config import get as get_alert_config
+    if not get_alert_config(db, "smart")["enabled"]:
+        return []
+
     latest = (
         db.query(
             models.SmartSnapshot.node_id.label("node_id"),
