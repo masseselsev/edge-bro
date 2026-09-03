@@ -33,31 +33,54 @@ export default function AlertsTab({ currentUser }: AlertsTabProps) {
   // GET /api/settings strips bootstrap_credentials[].password (it returns
   // CredentialSummary, loaded on every page view -- see schemas/settings.py);
   // POST /api/settings validates the body against CredentialSchema, which
-  // requires password back. Re-posting fullSettings unmodified would 422
-  // whenever any bootstrap credentials are configured, so their passwords are
-  // fetched separately here (GET /api/settings/credentials, the same
-  // require_admin-gated endpoint the credentials modal on the General tab
-  // uses) and merged back in at save time -- never rendered, never edited.
+  // requires password back, and always *replaces* bootstrap_credentials
+  // wholesale (routers/settings.py: `settings.bootstrap_credentials = new_creds`,
+  // defaulting to `[]` for anything not sent) -- there is no partial-update
+  // path here, so a credential this component cannot vouch for cannot be
+  // saved as `''` OR omitted; both wipe it in the DB. Passwords are fetched
+  // separately (GET /api/settings/credentials, the same require_admin-gated
+  // endpoint the credentials modal on the General tab uses) and merged back
+  // in at save time -- never rendered, never edited by this tab. If that
+  // fetch doesn't fully succeed, credentialsLoadError blocks Save entirely
+  // rather than risk silently blanking real passwords.
   const [credentialPasswords, setCredentialPasswords] = useState<Record<string, string>>({});
+  const [credentialsLoadError, setCredentialsLoadError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  const loadCredentialPasswords = useCallback(async (bootstrapCredentials: any[]) => {
+    try {
+      const res = await fetch('/api/settings/credentials');
+      if (!res.ok) throw new Error(`GET /api/settings/credentials -> ${res.status}`);
+      const creds = await res.json();
+      const passwords: Record<string, string> = {};
+      (Array.isArray(creds) ? creds : []).forEach((c: any) => { passwords[c.id] = c.password; });
+      // Every credential this settings object references must have come back
+      // with a password, or a save built from this map would silently blank
+      // whichever ones didn't.
+      const complete = (bootstrapCredentials || []).every((c: any) => typeof passwords[c.id] === 'string');
+      if (!complete) throw new Error('credentials response missing an entry the settings object references');
+      setCredentialPasswords(passwords);
+      setCredentialsLoadError(false);
+    } catch (e) {
+      console.error('Failed to load bootstrap credential passwords for the Alerts tab:', e);
+      setCredentialPasswords({});
+      setCredentialsLoadError(true);
+    }
+  }, []);
+
   useEffect(() => {
-    Promise.all([
-      fetch('/api/settings').then((res) => res.json()),
-      fetch('/api/settings/credentials').then((res) => (res.ok ? res.json() : [])).catch(() => []),
-    ])
-      .then(([data, creds]) => {
+    fetch('/api/settings')
+      .then((res) => res.json())
+      .then(async (data) => {
         setFullSettings(data);
         setAlertConfig(data.alert_config || {});
-        const passwords: Record<string, string> = {};
-        (creds || []).forEach((c: any) => { passwords[c.id] = c.password; });
-        setCredentialPasswords(passwords);
+        await loadCredentialPasswords(data.bootstrap_credentials || []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, []);
+  }, [loadCredentialPasswords]);
 
   const sourceValue = (source: string, field: string, fallback: any) =>
     alertConfig[source]?.[field] ?? fallback;
@@ -71,15 +94,23 @@ export default function AlertsTab({ currentUser }: AlertsTabProps) {
 
   const handleSave = useCallback(async () => {
     if (!fullSettings) return;
+    // Hard block: never POST a credential this component isn't sure of the
+    // real password for. Belt-and-braces alongside the disabled Save button
+    // below (which covers the same condition) -- see the comment on
+    // credentialPasswords above for why a fallback to '' or omitting the
+    // field from the payload are both unsafe here (the endpoint always
+    // replaces bootstrap_credentials wholesale, defaulting missing entries
+    // to deleted rather than "unchanged").
+    const existingCredentials: any[] = fullSettings.bootstrap_credentials || [];
+    const allPasswordsVerified = existingCredentials.every((c) => typeof credentialPasswords[c.id] === 'string');
+    if (credentialsLoadError || !allPasswordsVerified) {
+      setCredentialsLoadError(true);
+      return;
+    }
+    const bootstrapCredentials = existingCredentials.map((c) => ({ ...c, password: credentialPasswords[c.id] }));
     setSaving(true);
     setSuccess(false);
     try {
-      // Restore the passwords GET dropped so this validates against
-      // CredentialSchema -- see the comment on credentialPasswords above.
-      const bootstrapCredentials = (fullSettings.bootstrap_credentials || []).map((c: any) => ({
-        ...c,
-        password: credentialPasswords[c.id] ?? '',
-      }));
       const res = await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -99,7 +130,11 @@ export default function AlertsTab({ currentUser }: AlertsTabProps) {
     } finally {
       setSaving(false);
     }
-  }, [fullSettings, alertConfig, credentialPasswords]);
+  }, [fullSettings, alertConfig, credentialPasswords, credentialsLoadError]);
+
+  const handleRetryCredentials = useCallback(() => {
+    loadCredentialPasswords(fullSettings?.bootstrap_credentials || []);
+  }, [fullSettings, loadCredentialPasswords]);
 
   if (loading) {
     return <div className="text-xs text-zinc-500 p-4">{t('loading') || 'Loading...'}</div>;
@@ -109,6 +144,18 @@ export default function AlertsTab({ currentUser }: AlertsTabProps) {
     <div className="space-y-6">
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 space-y-3">
         <h3 className="text-sm font-bold text-zinc-100">{t('alertSourcesHeading')}</h3>
+        {credentialsLoadError && (
+          <div className="flex items-center justify-between gap-3 p-2.5 bg-red-950/40 border border-red-900/60 rounded-lg text-xs text-red-300">
+            <span>{t('alertsCredentialsLoadError')}</span>
+            <button
+              type="button"
+              onClick={handleRetryCredentials}
+              className="px-2.5 py-1 bg-red-900/40 hover:bg-red-900/60 text-red-200 rounded-md font-semibold shrink-0"
+            >
+              {t('retryButton')}
+            </button>
+          </div>
+        )}
         <div className="space-y-2">
           {SOURCE_FIELDS.map(({ key, labelKey, thresholds }) => {
             const enabled = sourceValue(key, 'enabled', true);
@@ -142,7 +189,7 @@ export default function AlertsTab({ currentUser }: AlertsTabProps) {
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || credentialsLoadError}
             className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold disabled:opacity-50"
           >
             {saving ? t('saving') : t('saveSettings')}

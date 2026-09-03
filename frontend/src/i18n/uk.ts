@@ -240,6 +240,8 @@ const uk: Record<string, string> = {
   alertThresholdDays: 'днів',
   alertThresholdWatchPercent: 'watch %',
   alertThresholdAlertPercent: 'alert %',
+  alertsCredentialsLoadError: 'Не вдалося перевірити збережені облікові дані, тому збереження тимчасово вимкнено, щоб не затерти паролі. Спробуйте ще раз.',
+  retryButton: 'Повторити',
   sshKeysTitle: 'Аудит авторизованих ключів',
   sshKeysIntro: 'Записи, створені edge-bro, позначаються тегом. Автоматично видаляються лише позначені записи, яким більше не відповідає живий запис у базі.',
   sshKeysRunScan: 'Запустити перевірку',

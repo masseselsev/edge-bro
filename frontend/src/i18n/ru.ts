@@ -240,6 +240,8 @@ const ru: Record<string, string> = {
   alertThresholdDays: 'дней',
   alertThresholdWatchPercent: 'watch %',
   alertThresholdAlertPercent: 'alert %',
+  alertsCredentialsLoadError: 'Не удалось проверить сохранённые учётные данные, поэтому сохранение временно отключено, чтобы не затереть пароли. Попробуйте ещё раз.',
+  retryButton: 'Повторить',
   sshKeysTitle: 'Аудит авторизованных ключей',
   sshKeysIntro: 'Записи, созданные edge-bro, помечаются тегом. Автоматически удаляются только помеченные записи, которым больше не соответствует живая запись в базе.',
   sshKeysRunScan: 'Запустить проверку',

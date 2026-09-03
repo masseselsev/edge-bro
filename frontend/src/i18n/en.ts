@@ -240,6 +240,8 @@ const en: Record<string, string> = {
   alertThresholdDays: 'days',
   alertThresholdWatchPercent: 'watch %',
   alertThresholdAlertPercent: 'alert %',
+  alertsCredentialsLoadError: "Couldn't verify saved bootstrap credentials, so saving is disabled for now to avoid blanking them. Try again.",
+  retryButton: 'Retry',
   sshKeysTitle: 'Authorized key audit',
   sshKeysIntro: 'Entries edge-bro wrote are tagged. Only tagged entries that no longer match a live record are removed automatically.',
   sshKeysRunScan: 'Run scan',
