@@ -1,5 +1,6 @@
 import os
 from datetime import datetime, timedelta
+from unittest.mock import patch, MagicMock
 
 import pytest
 from sqlalchemy import create_engine
@@ -11,6 +12,7 @@ from core.alert_sources import smart as smart_source
 from core.alert_sources import thermal as thermal_source
 from core.alert_sources import stale_backup as stale_backup_source
 from core.alert_sources import node_offline as node_offline_source
+from core.alert_sources import storage as storage_source
 from core.alert_sources import SOURCES
 from core.clock import utcnow
 
@@ -309,5 +311,55 @@ def test_node_offline_respects_the_disabled_flag(db_session):
     assert node_offline_source.evaluate(db_session) == []
 
 
-def test_registry_has_all_four_sources():
-    assert set(SOURCES.keys()) == {"smart", "thermal", "stale_backup", "node_offline"}
+def _usage(total, free):
+    return MagicMock(total=total, free=free)
+
+
+def test_storage_flags_a_path_below_alert_percent(db_session):
+    with patch("core.alert_sources.storage.repo_paths.all_shard_paths", return_value=["/data/borg/fleet"]), \
+         patch("os.path.isdir", return_value=False), \
+         patch("shutil.disk_usage", return_value=_usage(100, 2)):  # 2% free
+        candidates = storage_source.evaluate(db_session)
+
+    assert len(candidates) == 1
+    assert candidates[0].severity == "ALERT"
+    assert candidates[0].module == "storage"
+
+
+def test_storage_flags_a_path_below_watch_percent_only(db_session):
+    with patch("core.alert_sources.storage.repo_paths.all_shard_paths", return_value=["/data/borg/fleet"]), \
+         patch("os.path.isdir", return_value=False), \
+         patch("shutil.disk_usage", return_value=_usage(100, 10)):  # 10% free
+        candidates = storage_source.evaluate(db_session)
+
+    assert len(candidates) == 1
+    assert candidates[0].severity == "WATCH"
+
+
+def test_storage_ignores_a_healthy_path(db_session):
+    with patch("core.alert_sources.storage.repo_paths.all_shard_paths", return_value=["/data/borg/fleet"]), \
+         patch("os.path.isdir", return_value=False), \
+         patch("shutil.disk_usage", return_value=_usage(100, 50)):  # 50% free
+        assert storage_source.evaluate(db_session) == []
+
+
+def test_storage_skips_an_unreadable_path_without_raising(db_session):
+    with patch("core.alert_sources.storage.repo_paths.all_shard_paths", return_value=["/data/borg/fleet"]), \
+         patch("os.path.isdir", return_value=False), \
+         patch("shutil.disk_usage", side_effect=OSError("no such path")):
+        assert storage_source.evaluate(db_session) == []
+
+
+def test_storage_respects_the_disabled_flag(db_session):
+    settings = models.Settings(alert_config={"storage": {"enabled": False}})
+    db_session.add(settings)
+    db_session.commit()
+    with patch("core.alert_sources.storage.repo_paths.all_shard_paths", return_value=["/data/borg/fleet"]), \
+         patch("shutil.disk_usage", return_value=_usage(100, 1)):
+        assert storage_source.evaluate(db_session) == []
+
+
+def test_registry_has_all_five_sources():
+    assert set(SOURCES.keys()) == {
+        "smart", "thermal", "stale_backup", "node_offline", "storage",
+    }
