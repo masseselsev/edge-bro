@@ -67,6 +67,35 @@ def add_fit(db, node, theta=1.5, rejection="OK", days_ago=1):
     return fit
 
 
+from core.alert_config import get as get_alert_config, DEFAULTS as ALERT_CONFIG_DEFAULTS
+
+
+def test_alert_config_returns_defaults_when_settings_missing(db_session):
+    cfg = get_alert_config(db_session, "stale_backup")
+    assert cfg == ALERT_CONFIG_DEFAULTS["stale_backup"]
+
+
+def test_alert_config_merges_stored_over_defaults(db_session):
+    settings = models.Settings(alert_config={"stale_backup": {"days": 10}})
+    db_session.add(settings)
+    db_session.commit()
+
+    cfg = get_alert_config(db_session, "stale_backup")
+
+    assert cfg["days"] == 10
+    assert cfg["enabled"] is True  # untouched key still falls back to the default
+
+
+def test_alert_config_disabling_a_source_is_respected(db_session):
+    settings = models.Settings(alert_config={"smart": {"enabled": False}})
+    db_session.add(settings)
+    db_session.commit()
+
+    cfg = get_alert_config(db_session, "smart")
+
+    assert cfg["enabled"] is False
+
+
 @pytest.mark.parametrize("grade,expect_candidate,expect_severity", [
     ("OK", False, None),
     ("UNKNOWN", False, None),
