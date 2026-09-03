@@ -7,6 +7,7 @@ import type { Language } from '../i18n';
 import AdminsTab from './AdminsTab';
 import AuditLogsTab from './AuditLogsTab';
 import SshKeysTab from './SshKeysTab';
+import AlertsTab from './AlertsTab';
 import { CredentialsModal } from './CredentialsModal';
 import { InfoLabel } from './InfoLabel';
 import RepositoryCapacityPanel from './RepositoryCapacityPanel';
@@ -20,7 +21,7 @@ interface SettingsTabProps {
 
 export default function SettingsTab({ onSettingsUpdated, currentUser }: SettingsTabProps) {
   const { t, setLanguage } = useTranslation();
-  const [activeSubTab, setActiveSubTab] = useState<'general' | 'admins' | 'audit' | 'kiosk_logs' | 'ssh_keys'>('general');
+  const [activeSubTab, setActiveSubTab] = useState<'general' | 'admins' | 'audit' | 'kiosk_logs' | 'ssh_keys' | 'alerts'>('general');
   const [sshPort, setSshPort] = useState(12345);
   const [policyType, setPolicyType] = useState<'interval' | 'count' | 'timeframe'>('interval');
   const [policyKeepDaily, setPolicyKeepDaily] = useState(7);
@@ -380,6 +381,17 @@ export default function SettingsTab({ onSettingsUpdated, currentUser }: Settings
           >
             {t('tabKioskLogs') || 'Kiosk Logs'}
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveSubTab('alerts')}
+            className={`pb-2 border-b-2 px-1 transition-all cursor-pointer outline-none ${
+              activeSubTab === 'alerts'
+                ? 'border-indigo-500 text-zinc-150'
+                : 'border-transparent text-zinc-450 hover:text-zinc-300'
+            }`}
+          >
+            {t('alertsTabLabel')}
+          </button>
         </div>
       )}
 
@@ -391,6 +403,8 @@ export default function SettingsTab({ onSettingsUpdated, currentUser }: Settings
         <SshKeysTab />
       ) : activeSubTab === 'kiosk_logs' && (currentUser?.is_superadmin || currentUser?.is_admin_plus) ? (
         <AuditLogsTab timezone={timezone} type="kiosk" />
+      ) : activeSubTab === 'alerts' && (currentUser?.is_superadmin || currentUser?.is_admin_plus) ? (
+        <AlertsTab currentUser={currentUser} />
       ) : (
         <form id="settings-form" onSubmit={handleSave} className="space-y-6">
           {warnings.length > 0 && (
