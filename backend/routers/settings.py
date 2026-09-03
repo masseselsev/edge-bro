@@ -228,6 +228,15 @@ def update_settings(payload: schemas.SettingsBase, request: Request, db: Session
         if policy_changes:
             changes.extend(policy_changes)
 
+    old_alert_cfg = settings.alert_config or {}
+    new_alert_cfg = payload.alert_config or {}
+    if old_alert_cfg != new_alert_cfg:
+        for source in set(old_alert_cfg) | set(new_alert_cfg):
+            old_src = old_alert_cfg.get(source, {})
+            new_src = new_alert_cfg.get(source, {})
+            if old_src != new_src:
+                changes.append(f"Alert {source}: {old_src} -> {new_src}")
+
     rebuild_needed = (
         settings.server_ips != payload.server_ips or 
         settings.orchestrator_ip != payload.orchestrator_ip
@@ -255,9 +264,11 @@ def update_settings(payload: schemas.SettingsBase, request: Request, db: Session
     # Superadmin-only: see SettingsBase.allow_admin_key_terminal_access.
     if current_user.is_superadmin:
         settings.allow_admin_key_terminal_access = payload.allow_admin_key_terminal_access
+    settings.alert_config = payload.alert_config
     from sqlalchemy.orm.attributes import flag_modified
     flag_modified(settings, "bootstrap_credentials")
     flag_modified(settings, "global_exclusions")
+    flag_modified(settings, "alert_config")
     db.commit()
 
     if rebuild_needed:

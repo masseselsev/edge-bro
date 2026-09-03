@@ -119,6 +119,58 @@ def test_alert_config_defaults_to_none(db_session):
     assert settings.alert_config is None
 
 
+@pytest.fixture
+def client():
+    """TestClient runs requests on a background thread, so this needs the
+    same dedicated StaticPool engine as
+    `test_only_superadmin_can_change_admin_key_terminal_access` below —
+    a bare `sqlite:///:memory:` hands each thread its own unmigrated
+    database and every request 500s with `no such table: settings`.
+    """
+    from fastapi.testclient import TestClient
+    from sqlalchemy.pool import StaticPool
+    from database import get_db
+    from main import app
+    from auth import require_admin
+
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    Base.metadata.create_all(bind=engine)
+    db = sessionmaker(autocommit=False, autoflush=False, bind=engine)()
+
+    settings = models.Settings()
+    db.add(settings)
+    db.commit()
+
+    app.dependency_overrides[get_db] = lambda: db
+    app.dependency_overrides[require_admin] = lambda: models.User(username="tester-admin", is_superadmin=True)
+
+    try:
+        with TestClient(app) as c:
+            yield c
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+        Base.metadata.drop_all(bind=engine)
+
+
+def test_alert_config_round_trips_through_the_settings_api(client):
+    payload = client.get("/api/settings").json()
+    payload["alert_config"] = {"stale_backup": {"enabled": False, "days": 7}}
+    # GET returns bootstrap_credentials without passwords (CredentialSummary,
+    # see schemas/settings.py); POST requires them back (CredentialSchema).
+    # Unrelated to alert_config — fill in dummies so the round trip validates.
+    for cred in payload["bootstrap_credentials"]:
+        cred["password"] = "dummy"
+
+    res = client.post("/api/settings", json=payload)
+
+    assert res.status_code == 200
+    assert res.json()["alert_config"] == {"stale_backup": {"enabled": False, "days": 7}}
+
+    # And it actually persisted, not just echoed back from the request body.
+    assert client.get("/api/settings").json()["alert_config"] == {"stale_backup": {"enabled": False, "days": 7}}
+
+
 def test_only_superadmin_can_change_admin_key_terminal_access():
     """Not the module's `db_session` fixture: that engine is a bare
     `sqlite:///:memory:` with no `poolclass=StaticPool`, so SQLAlchemy's
