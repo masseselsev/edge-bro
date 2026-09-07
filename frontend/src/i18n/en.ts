@@ -68,6 +68,7 @@ const en: Record<string, string> = {
   viewLogs: 'View Logs',
   deleteNodeConfirm: 'Are you sure you want to delete this node and its history?',
   bulkDeleteConfirm: 'Are you sure you want to delete {count} selected node(s)? This will also remove their backup histories.',
+  useDefaultCredentialsConfirm: 'Provision {hostname} with the fleet\'s default credentials? Choose Cancel to enter a login and password for this node instead.',
   noNodesFound: 'No nodes registered. Click "Add Node" to get started.',
 
   // Node Modals

@@ -137,6 +137,25 @@ def _run_bootstrap(
         orchestrator_borg_ssh_port = settings.borg_ssh_port
         orchestrator_tag = ssh_keys.orchestrator_tag(settings.orchestrator_id)
 
+    # Bootstrap reinstalls borgbackup on the node (`apt-get install
+    # borgbackup ...`) and restarts its sshd. A `borg create` already running
+    # there is a separate SSH session the node holds outbound to borg-server,
+    # unaffected by that restart, and Linux keeps an already-running
+    # process's binary readable even after apt replaces the file on disk —
+    # but a *second* borg invocation racing the mid-install window is not
+    # protected, so refuse rather than risk it. The node stays exactly as it
+    # was; re-provisioning after the backup finishes costs nothing.
+    from core.scheduler import is_backup_lock_live
+    if is_backup_lock_live(node_id):
+        tasks.log_to_task(
+            task_id,
+            f"[BLOCKED] {node_hostname} is currently running a backup. "
+            "Provisioning would race package installs and an SSH restart "
+            "against it -- try again once the backup finishes.",
+            status="FAILED",
+        )
+        return {"status": "FAILED", "error": "Backup currently running for this node"}
+
     tasks.log_to_task(task_id, f"Starting bootstrap for {node_hostname} ({node_ip})")
 
     # A (re)install regenerates the node's SSH host keys. Forgetting the old

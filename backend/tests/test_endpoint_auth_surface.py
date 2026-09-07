@@ -80,9 +80,14 @@ def _api_routes():
 
 def _auth_guards(route):
     """Every auth dependency reachable from this route, at any depth."""
-    found, stack = set(), [route.dependant]
+    root_dep = getattr(route, "dependant", None)
+    if root_dep is None and hasattr(route, "original_route"):
+        root_dep = getattr(route.original_route, "dependant", None)
+    found, stack = set(), [root_dep] if root_dep is not None else []
     while stack:
         dep = stack.pop()
+        if dep is None:
+            continue
         name = getattr(dep.call, "__name__", None)
         if name:
             found.add(name)

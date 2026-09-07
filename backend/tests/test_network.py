@@ -246,6 +246,62 @@ def test_bootstrap_node_task_passes_force_orchestrator_proxy(monkeypatch):
     assert passed_vars.get("force_orchestrator_proxy") is True
 
 
+def test_bootstrap_refuses_when_backup_is_running(monkeypatch):
+    import os
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from database import Base
+    import models
+    import tasks
+
+    TEST_DATABASE_URL = "sqlite:///./test_network_backup_running.db"
+    if os.path.exists("./test_network_backup_running.db"):
+        os.remove("./test_network_backup_running.db")
+    engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    Base.metadata.create_all(bind=engine)
+
+    db = TestingSessionLocal()
+    node = models.Node(hostname="test-node-busy", ip_address="192.168.100.3", status="ONLINE")
+    db.add(node)
+    db.commit()
+    node_id = node.id
+    db.close()
+
+    monkeypatch.setattr("tasks.SessionLocal", TestingSessionLocal)
+    monkeypatch.setattr("database.SessionLocal", TestingSessionLocal)
+
+    playbook_called = False
+
+    def mock_run_playbook(task_id, playbook_name, host_ip, ssh_port, extra_vars, ssh_password=None):
+        nonlocal playbook_called
+        playbook_called = True
+        return {"status": "SUCCESS", "parsed_data": {}}
+
+    monkeypatch.setattr("tasks.run_ansible_playbook", mock_run_playbook)
+    monkeypatch.setattr("tasks.ensure_orchestrator_ssh_key", lambda: "ssh-ed25519 AAA...")
+    monkeypatch.setattr("core.scheduler.is_backup_lock_live", lambda nid: True)
+
+    class MockRequest:
+        id = "test-task-id-busy"
+    monkeypatch.setattr("celery.app.task.Task.request", MockRequest())
+
+    result = tasks.run_bootstrap_task(node_id=node_id, bootstrap_user="root", ssh_password="pwd")
+
+    db = TestingSessionLocal()
+    log = db.query(models.TaskLog).filter(models.TaskLog.id == "test-task-id-busy").first()
+    db.close()
+
+    Base.metadata.drop_all(bind=engine)
+    if os.path.exists("./test_network_backup_running.db"):
+        os.remove("./test_network_backup_running.db")
+
+    assert playbook_called is False
+    assert result["status"] == "FAILED"
+    assert log is not None
+    assert log.status == "FAILED"
+    assert "backup" in log.log_output.lower()
+
 
 @patch("subprocess.check_call")
 @patch("subprocess.check_output")

@@ -26,9 +26,10 @@ interface BackupGroup {
 interface FleetTabProps {
   onViewLogs: (taskId: string, title: string) => void;
   timezone?: string;
+  currentUser?: any;
 }
 
-export default function FleetTab({ onViewLogs, timezone }: FleetTabProps) {
+export default function FleetTab({ onViewLogs, timezone, currentUser }: FleetTabProps) {
   const { t } = useTranslation();
   const [nodes, setNodes] = useState<Node[]>([]);
   const [groups, setGroups] = useState<BackupGroup[]>([]);
@@ -343,7 +344,23 @@ export default function FleetTab({ onViewLogs, timezone }: FleetTabProps) {
     } finally {
       setProvSubmitting(false);
     }
-  }, []);
+  }, [fetchNodes, onViewLogs]);
+
+  // Every provisioning trigger in the fleet table -- a node that has never
+  // been provisioned as much as one that already has -- now asks this same
+  // question first, instead of some statuses silently assuming the fleet's
+  // default credentials apply and others always demanding a fresh login.
+  // "No" opens the same manual form either way.
+  const handleProvisionClick = useCallback((node: Node) => {
+    const useDefault = window.confirm(
+      t('useDefaultCredentialsConfirm').replace('{hostname}', node.hostname)
+    );
+    if (useDefault) {
+      handleInstantProvision(node);
+    } else {
+      setShowProvisionModal(node);
+    }
+  }, [t, handleInstantProvision]);
 
   const runPrepare = useCallback(async (nodeId: number, name: string) => {
     try {
@@ -501,13 +518,13 @@ export default function FleetTab({ onViewLogs, timezone }: FleetTabProps) {
         isSelected={!!selectedNodeIds[node.id]}
         onSelectNode={handleSelectNode}
         onRunPrepare={runPrepare}
-        onShowProvision={setShowProvisionModal}
-        onInstantProvision={handleInstantProvision}
+        onProvisionClick={handleProvisionClick}
         onShowBackup={handleShowBackup}
         onDeleteNode={handleDeleteNode}
         onShowDetails={handleShowDetails}
         onSaveSshLogin={handleSaveSshLogin}
         onOpenTerminal={handleOpenTerminal}
+        currentUser={currentUser}
         groupName={group ? group.name : null}
         groupRateLimit={group ? group.upload_rate_limit : null}
         timezone={timezone}

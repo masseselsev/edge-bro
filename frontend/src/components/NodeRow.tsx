@@ -14,8 +14,11 @@ interface NodeRowProps {
   isSelected: boolean;
   onSelectNode: (nodeId: number, checked: boolean) => void;
   onRunPrepare: (nodeId: number, hostname: string) => void;
-  onShowProvision: (node: Node) => void;
-  onInstantProvision: (node: Node) => void;
+  /** Every provisioning trigger in this row -- ready, needing a fix, never
+   *  bootstrapped, or offline -- routes through here. It asks whether to use
+   *  the fleet's default credentials before doing anything, rather than some
+   *  statuses assuming yes and others always demanding a fresh login. */
+  onProvisionClick: (node: Node) => void;
   onShowBackup: (node: Node) => void;
   onDeleteNode: (nodeId: number, hostname: string) => void;
   /** Takes the id so FleetTab can hold one stable callback for every row. */
@@ -25,6 +28,12 @@ interface NodeRowProps {
   onSaveSshLogin: (nodeId: number, hostname: string, login: string) => void;
   /** Opens the web terminal modal for this node. */
   onOpenTerminal: (node: Node) => void;
+  /** A superadmin's terminal session always connects as root over the
+   *  orchestrator's own key (routers/terminal.py's `use_key` check) — the
+   *  node's stored ssh_login is never read for them, so prompting for one
+   *  first is a pointless gate that only a superadmin can hit, since they're
+   *  the only role this row can identify client-side. */
+  currentUser?: any;
   groupName: string | null;
   groupRateLimit?: number | null;
   timezone?: string;
@@ -36,13 +45,13 @@ function NodeRowComponent({
   isSelected,
   onSelectNode,
   onRunPrepare,
-  onShowProvision,
-  onInstantProvision,
+  onProvisionClick,
   onShowBackup,
   onDeleteNode,
   onShowDetails,
   onSaveSshLogin,
   onOpenTerminal,
+  currentUser,
   groupName,
   groupRateLimit,
   timezone,
@@ -131,7 +140,11 @@ function NodeRowComponent({
   const handleIpPortClick = (e: React.MouseEvent) => {
     if (!(e.ctrlKey || e.metaKey)) return;
     e.preventDefault();
-    if (node.ssh_login) {
+    // A superadmin's session always connects as root over the orchestrator's
+    // own key (routers/terminal.py's `use_key` check) -- the backend never
+    // reads ssh_login for them, so asking for one here first would gate a
+    // superadmin's terminal behind a value their own connection ignores.
+    if (currentUser?.is_superadmin || node.ssh_login) {
       onOpenTerminal(node);
       return;
     }
@@ -162,7 +175,7 @@ function NodeRowComponent({
       READY: {
         bg: "bg-emerald-500/10 hover:bg-emerald-500/20", text: "text-emerald-400", border: "border-emerald-500/20",
         label: t('readyOk'), icon: <CheckCircle size={14} />, title: t('pressToProvision') || "Press to provision",
-        onClick: () => onInstantProvision(node)
+        onClick: () => onProvisionClick(node)
       },
       RESTORED: {
         bg: "bg-indigo-500/10 hover:bg-indigo-500/20", text: "text-indigo-400", border: "border-indigo-500/30",
@@ -172,19 +185,19 @@ function NodeRowComponent({
       NEEDS_FIX: {
         bg: "bg-amber-500/10 hover:bg-amber-500/20", text: "text-amber-400", border: "border-amber-500/20",
         label: t('needsFixPrepare'), icon: <AlertTriangle size={14} />, title: t('pressToProvision') || "Press to provision",
-        onClick: () => onInstantProvision(node)
+        onClick: () => onProvisionClick(node)
       },
       NEEDS_BOOTSTRAP: {
         bg: "bg-zinc-500/10 hover:bg-zinc-500/20", text: "text-zinc-400", border: "border-zinc-500/20",
         label: t('statusProvision'), icon: <Gear size={14} />, title: t('provisionNodeTooltip'),
-        onClick: () => onShowProvision(node)
+        onClick: () => onProvisionClick(node)
       },
       OFFLINE: {
         bg: "bg-rose-500/10 hover:bg-rose-500/20", text: "text-rose-400", border: "border-rose-500/20",
         label: timeLeft > 0 ? t('provisionTimeLeft').replace('{time}', formatTime(timeLeft)) : t('statusProvision'),
         icon: <ShieldAlert size={14} />,
         title: timeLeft > 0 ? t('autoRetryIn').replace('{time}', formatTime(timeLeft)) : t('provisionOfflineNode'),
-        onClick: () => onShowProvision(node)
+        onClick: () => onProvisionClick(node)
       }
     };
     const config = statusMap[node.status] || statusMap.OFFLINE;

@@ -373,7 +373,7 @@ function AppContent() {
         return <ScheduleTab />;
       case 'fleet':
       default:
-        return <FleetTab onViewLogs={handleViewLogs} timezone={timezone} />;
+        return <FleetTab onViewLogs={handleViewLogs} timezone={timezone} currentUser={currentUser} />;
     }
   };
 
