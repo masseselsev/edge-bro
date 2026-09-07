@@ -175,19 +175,21 @@ docker compose up -d
 
 #### Вариант А: Запуск готового релиза (Рекомендуется для продакшена)
 
-Локальная сборка не требуется. Скачайте официальные релизные образы напрямую из GitHub Container Registry (`ghcr.io`):
+Локальная сборка не требуется. Скачайте официальные релизные образы напрямую из GitHub Container Registry (`ghcr.io`). Начиная с версии **v1.8.1**, для запуска требуются **строго только два файла** (`docker-compose.yml` и `.env`) — вспомогательный payload для Live-CD киосков упакован прямо в контейнерный образ:
 
 ```bash
-docker compose -f docker-compose.yml pull
-docker compose -f docker-compose.yml up -d
+# 1. Скачивание только docker-compose.yml и .env
+curl -fsSL https://raw.githubusercontent.com/masseselsev/edge-bro/v1.8.1/docker-compose.yml -o docker-compose.yml
+curl -fsSL https://raw.githubusercontent.com/masseselsev/edge-bro/v1.8.1/.env.example -o .env
+
+# 2. Настройка паролей и параметров
+nano .env
+
+# 3. Скачивание образов и запуск
+docker compose pull && docker compose up -d
 ```
 
-*(Флаг `-f docker-compose.yml` указывает игнорировать файл `docker-compose.override.yml`, предназначенный только для локальной разработки.)*
-
-> **Минимальное автономное развёртывание**: Если вы разворачиваете стек без `git clone` (скопировав на сервер только `docker-compose.yml`, `.env` и каталог `payload_client/`), достаточно выполнить:
-> ```bash
-> docker compose pull && docker compose up -d
-> ```
+*(Флаг `-f docker-compose.yml` нужен только если вы клонировали репозиторий, чтобы проигнорировать файл `docker-compose.override.yml`, предназначенный для локальной разработки).*
 
 #### Вариант Б: Локальная сборка из исходников (Только разработка)
 

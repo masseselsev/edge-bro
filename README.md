@@ -343,23 +343,24 @@ already backs up correctly should not be marked broken over telemetry.
 
 ### Quick Start (Pre-built Release)
 
-Deploy the orchestrator without local compilation using official pre-built release images from GitHub Container Registry (`ghcr.io`):
+Deploy the orchestrator without local compilation using official pre-built release images from GitHub Container Registry (`ghcr.io`). Starting with **v1.8.1**, deployment requires **strictly only two files** (`docker-compose.yml` and `.env`) — the Kiosk Live-CD payload is baked directly into the container image:
 
 ```bash
-# 1. Clone repository
-git clone --branch v1.8.0 https://github.com/masseselsev/edge-bro.git /opt/stacks/edge-bro
-cd /opt/stacks/edge-bro
+mkdir -p /opt/stacks/edge-bro && cd /opt/stacks/edge-bro
+
+# 1. Download compose file and sample environment (strictly 2 files needed)
+curl -fsSL https://raw.githubusercontent.com/masseselsev/edge-bro/v1.8.1/docker-compose.yml -o docker-compose.yml
+curl -fsSL https://raw.githubusercontent.com/masseselsev/edge-bro/v1.8.1/.env.example -o .env
 
 # 2. Configure environment
-cp .env.example .env
-nano .env   # Set passwords, ORCHESTRATOR_IP, and verify EDGE_BRO_IMAGE_TAG=1.8.0
+nano .env   # Set passwords, ORCHESTRATOR_IP, and verify EDGE_BRO_IMAGE_TAG=1.8.1
 
 # 3. Pull pre-built images and launch (zero local compilation)
-docker compose -f docker-compose.yml pull
-docker compose -f docker-compose.yml up -d
+docker compose pull
+docker compose up -d
 ```
 
-> **Minimal Compose-only deployment**: If copying files without `git clone`, you only need `docker-compose.yml`, `.env`, and the `payload_client/` folder (used by the kiosk builder). Run `docker compose pull && docker compose up -d`.
+*(Alternatively, if you clone the repo via `git clone --branch v1.8.1 https://github.com/masseselsev/edge-bro.git /opt/stacks/edge-bro`, run `docker compose -f docker-compose.yml up -d` to use production images).*
 
 Open `http://<YOUR_SERVER_IP>:7777` in your browser and log in with the credentials configured in `.env`.
 

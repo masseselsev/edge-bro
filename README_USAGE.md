@@ -173,19 +173,21 @@ If the cache sits on the system root partition, the dashboard raises an `ISO_CAC
 
 #### Option A: Pre-built Release Deployment (Recommended for Production)
 
-Zero local compilation or toolchain required. Pull official release images directly from GitHub Container Registry (`ghcr.io`):
+Zero local compilation or toolchain required. Pull official release images directly from GitHub Container Registry (`ghcr.io`). Starting with **v1.8.1**, deployment requires **strictly only two files** (`docker-compose.yml` and `.env`) — the Live-CD Kiosk payload is embedded inside the container image:
 
 ```bash
-docker compose -f docker-compose.yml pull
-docker compose -f docker-compose.yml up -d
+# 1. Download only docker-compose.yml and .env
+curl -fsSL https://raw.githubusercontent.com/masseselsev/edge-bro/v1.8.1/docker-compose.yml -o docker-compose.yml
+curl -fsSL https://raw.githubusercontent.com/masseselsev/edge-bro/v1.8.1/.env.example -o .env
+
+# 2. Configure passwords and settings
+nano .env
+
+# 3. Pull images and launch
+docker compose pull && docker compose up -d
 ```
 
-*(Note: `-f docker-compose.yml` instructs Compose to ignore `docker-compose.override.yml`, which is designed for live local code development.)*
-
-> **Minimal standalone deployment**: If you are deploying without `git clone` (by copying `docker-compose.yml`, `.env`, and the `payload_client/` directory to the server), simply run:
-> ```bash
-> docker compose pull && docker compose up -d
-> ```
+*(Note: If deploying inside a git clone checkout, run `docker compose -f docker-compose.yml up -d` so Compose ignores the development `docker-compose.override.yml` file).*
 
 #### Option B: Local Build from Source (Development Only)
 

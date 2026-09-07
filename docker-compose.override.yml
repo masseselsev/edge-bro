@@ -16,14 +16,17 @@ services:
   backend:
     volumes:
       - ./backend:/app
+      - ./payload_client:/payload_client
 
   worker:
     volumes:
       - ./backend:/app
+      - ./payload_client:/payload_client
 
   worker-periodic:
     volumes:
       - ./backend:/app
+      - ./payload_client:/payload_client
 
   beat:
     volumes:

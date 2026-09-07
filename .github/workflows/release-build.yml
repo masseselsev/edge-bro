@@ -21,7 +21,7 @@ jobs:
       matrix:
         component:
           - name: backend
-            context: ./backend
+            context: .
             dockerfile: docker/backend/Dockerfile
             image: edge-bro-backend
           - name: frontend

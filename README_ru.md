@@ -343,23 +343,24 @@ sudo usbreset 152d:0581   # или переподключите USB-кабель
 
 ### Быстрый запуск (Готовый релиз)
 
-Развёртывание оркестратора без локальной сборки — используются официальные готовые образы из GitHub Container Registry (`ghcr.io`):
+Развёртывание оркестратора без локальной сборки — используются официальные готовые образы из GitHub Container Registry (`ghcr.io`). Начиная с версии **v1.8.1**, для запуска требуются **строго только два файла** (`docker-compose.yml` и `.env`) — вспомогательный payload для Live-CD киосков упакован прямо в контейнерный образ:
 
 ```bash
-# 1. Клонирование репозитория
-git clone --branch v1.8.0 https://github.com/masseselsev/edge-bro.git /opt/stacks/edge-bro
-cd /opt/stacks/edge-bro
+mkdir -p /opt/stacks/edge-bro && cd /opt/stacks/edge-bro
+
+# 1. Скачивание compose-файла и примера переменных (нужны только 2 файла)
+curl -fsSL https://raw.githubusercontent.com/masseselsev/edge-bro/v1.8.1/docker-compose.yml -o docker-compose.yml
+curl -fsSL https://raw.githubusercontent.com/masseselsev/edge-bro/v1.8.1/.env.example -o .env
 
 # 2. Настройка окружения
-cp .env.example .env
-nano .env   # Задайте пароли, ORCHESTRATOR_IP и убедитесь в EDGE_BRO_IMAGE_TAG=1.8.0
+nano .env   # Задайте пароли, ORCHESTRATOR_IP и проверьте EDGE_BRO_IMAGE_TAG=1.8.1
 
 # 3. Скачивание релизных образов и запуск (без локальной компиляции)
-docker compose -f docker-compose.yml pull
-docker compose -f docker-compose.yml up -d
+docker compose pull
+docker compose up -d
 ```
 
-> **Минимальный запуск через Compose**: Если вы переносите файлы без `git clone`, вам понадобятся только `docker-compose.yml`, `.env` и каталог `payload_client/` (используется сборщиком Live-CD киосков). Запуск: `docker compose pull && docker compose up -d`.
+*(Если вы клонируете репозиторий через `git clone --branch v1.8.1 https://github.com/masseselsev/edge-bro.git /opt/stacks/edge-bro`, используйте `docker compose -f docker-compose.yml up -d` для запуска релизных образов вместо dev-окружения).*
 
 Откройте `http://<IP_СЕРВЕРА>:7777` в браузере и авторизуйтесь под суперпользователем из `.env`.
 

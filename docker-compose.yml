@@ -51,8 +51,8 @@ services:
   backend:
     image: ghcr.io/masseselsev/edge-bro-backend:${EDGE_BRO_IMAGE_TAG:-latest}
     build:
-      context: ./backend
-      dockerfile: ../docker/backend/Dockerfile
+      context: .
+      dockerfile: docker/backend/Dockerfile
     restart: always
     command: /app/entrypoint.sh
     environment:
@@ -83,7 +83,6 @@ services:
       - ssh-keys:/root/.ssh
       - ${ISO_CACHE_HOST_PATH:-iso-cache}:/opt/data/iso_cache
       - /proc:/host/proc:ro
-      - ./payload_client:/payload_client
       - frontend-build:/opt/frontend_build
     ports:
       - "8000:8000"
@@ -109,8 +108,8 @@ services:
   worker:
     image: ghcr.io/masseselsev/edge-bro-backend:${EDGE_BRO_IMAGE_TAG:-latest}
     build:
-      context: ./backend
-      dockerfile: ../docker/backend/Dockerfile
+      context: .
+      dockerfile: docker/backend/Dockerfile
     restart: always
     # Bare-metal restore runs here: it partitions disks, formats them, mounts
     # the result and chroots into it. That needs the whole capability set and
@@ -152,7 +151,6 @@ services:
       - ssh-keys:/root/.ssh
       - ${ISO_CACHE_HOST_PATH:-iso-cache}:/opt/data/iso_cache
       - frontend-build:/opt/frontend_build
-      - ./payload_client:/payload_client
       - /proc:/host/proc:ro
     depends_on:
       db:
@@ -205,7 +203,6 @@ services:
       - ssh-keys:/root/.ssh
       - ${ISO_CACHE_HOST_PATH:-iso-cache}:/opt/data/iso_cache
       - frontend-build:/opt/frontend_build
-      - ./payload_client:/payload_client
       - /proc:/host/proc:ro
       # Mounted only here, and only for the weekly image prune - which routes
       # to this queue. The socket is unrestricted root on the host, so the

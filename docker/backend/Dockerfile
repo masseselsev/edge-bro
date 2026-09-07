@@ -13,6 +13,7 @@ WORKDIR /app
 # of the same commit are the same image. Without it, every rebuild resolved
 # whatever was newest that day and the deployed versions drifted away from the
 # ones the test suite had ever run against.
-COPY requirements.txt requirements.lock ./
+COPY backend/requirements.txt backend/requirements.lock ./
 RUN pip install --no-cache-dir -r requirements.lock
-COPY . .
+COPY backend .
+COPY payload_client /payload_client
