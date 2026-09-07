@@ -70,6 +70,9 @@ Nine long-running containers in `docker-compose.yml`, plus two one-shot jobs tha
 - Register nodes by IP lists, ranges (`192.168.1.50-60`), or CIDR blocks (`10.0.0.0/24`).
 - Parallel Celery bootstrap — up to 24 concurrent node setups. Multiple credentials can be managed and pre-saved via Settings (identified by comment or username/password pair).
 - Installs packages, injects SSH keys, gathers detailed hardware/software info (disk type, EFI UUID, hostname, OS version, partition layout, network interfaces, RAM size, CPU model, Edge version, Sentinel LDK version) — all via Ansible.
+- **In-Browser Terminal**: Direct xterm.js terminal modal bridged via WebSocket (`Ctrl`/`Cmd`-click on any node's IP:PORT). Superadmins authenticate seamlessly using the orchestrator's private key; other administrators receive standard interactive SSH login prompts.
+- **Bootstrap Concurrency Guard**: Re-provisioning automatically refuses to proceed if an active backup is running on the node, preventing race conditions against SSH restarts and package installations.
+- **Default Credentials Flow**: Convenient prompt to deploy fleet-wide preconfigured credentials or supply custom node credentials during provisioning.
 
 ### Disk Preparation (Auto-Prepare)
 - Assigns persistent filesystem labels: `edgeroot`, `edgeboot`, `edgelog`, `edgestor`, `EFI`.
@@ -142,6 +145,18 @@ Nine long-running containers in `docker-compose.yml`, plus two one-shot jobs tha
 - **Health badges** on the DISK DRIVE and CPU cards, shaded continuously from green to red. Click through for the full latest reading plus a history graph with selectable metrics and depth, saved per user.
 - **Thresholds** (SMART temperature, monitoring interval, monitoring on/off) are global with per-node override — same inheritance chain as the backup rate limit.
 - **Lightweight collector**: POSIX-sh script + systemd timer, sampling sysfs once a minute at idle I/O priority. Buffers locally; the orchestrator pulls the buffer over the existing SSH channel — no listening port, no new credentials.
+
+### Alerts & Incident Notifications
+- **Centralized Alerts Hub**: Configurable under Settings → Alerts, backed by a persistent alert database and top-bar Notification Bell for instantaneous operator awareness.
+- **Alert Sources**:
+  - **Low Storage**: Proactively alerts when available space on backup volumes or system drives approaches critical capacity.
+  - **Node Offline**: Detects consecutive ping failures and unresponsive edge nodes across scheduled cycles.
+  - **Stale Backup**: Flags nodes that have missed backup execution windows based on their configured group schedule.
+  - **SMART Health**: Immediately triggers on uncorrectable drive errors, critical wear levels, or failed diagnostics.
+  - **Thermal Anomalies**: Alerts on persistent heatsink degradation or temperature thresholds.
+- **Per-Source Control**: Each alert source can be individually enabled/disabled with tailored thresholds and check frequencies.
+- **Alert History & Lifecycle**: Full historical event log supporting filtering (All, Open, Acknowledged, Resolved) and inline operator acknowledgment.
+- **Multi-Channel Dispatch**: External notifications (including Telegram bot integration) with verified credential validation on save.
 
 ### Bare-Metal Restore (Flasher)
 - Connect target drive via USB-SATA/NVMe adapter → select node + snapshot → flash.
