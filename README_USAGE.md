@@ -171,6 +171,26 @@ If the cache sits on the system root partition, the dashboard raises an `ISO_CAC
 
 ### 2.4 Start everything
 
+#### Option A: Pre-built Release Deployment (Recommended for Production)
+
+Zero local compilation or toolchain required. Pull official release images directly from GitHub Container Registry (`ghcr.io`):
+
+```bash
+docker compose -f docker-compose.yml pull
+docker compose -f docker-compose.yml up -d
+```
+
+*(Note: `-f docker-compose.yml` instructs Compose to ignore `docker-compose.override.yml`, which is designed for live local code development.)*
+
+> **Minimal standalone deployment**: If you are deploying without `git clone` (by copying `docker-compose.yml`, `.env`, and the `payload_client/` directory to the server), simply run:
+> ```bash
+> docker compose pull && docker compose up -d
+> ```
+
+#### Option B: Local Build from Source (Development Only)
+
+If you are modifying frontend or backend source code locally:
+
 ```bash
 docker compose up -d --build
 ```

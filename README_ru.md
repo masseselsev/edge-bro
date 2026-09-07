@@ -341,6 +341,28 @@ sudo usbreset 152d:0581   # или переподключите USB-кабель
 
 ## Установка и использование
 
+### Быстрый запуск (Готовый релиз)
+
+Развёртывание оркестратора без локальной сборки — используются официальные готовые образы из GitHub Container Registry (`ghcr.io`):
+
+```bash
+# 1. Клонирование репозитория
+git clone --branch v1.8.0 https://github.com/masseselsev/edge-bro.git /opt/stacks/edge-bro
+cd /opt/stacks/edge-bro
+
+# 2. Настройка окружения
+cp .env.example .env
+nano .env   # Задайте пароли, ORCHESTRATOR_IP и убедитесь в EDGE_BRO_IMAGE_TAG=1.8.0
+
+# 3. Скачивание релизных образов и запуск (без локальной компиляции)
+docker compose -f docker-compose.yml pull
+docker compose -f docker-compose.yml up -d
+```
+
+> **Минимальный запуск через Compose**: Если вы переносите файлы без `git clone`, вам понадобятся только `docker-compose.yml`, `.env` и каталог `payload_client/` (используется сборщиком Live-CD киосков). Запуск: `docker compose pull && docker compose up -d`.
+
+Откройте `http://<IP_СЕРВЕРА>:7777` в браузере и авторизуйтесь под суперпользователем из `.env`.
+
 → **[Русская инструкция](README_USAGE_ru.md)** — пошаговое руководство по развёртыванию и работе.
 
 → **[English Usage Guide](README_USAGE.md)** — step-by-step deployment and operations guide.

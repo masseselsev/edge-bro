@@ -66,6 +66,18 @@ def main():
     else:
         print("Warning: frontend/package-lock.json not found")
 
+    # 5. Update .env.example
+    env_example_path = os.path.join(root_dir, ".env.example")
+    if os.path.exists(env_example_path):
+        with open(env_example_path, "r") as f:
+            content = f.read()
+        new_content = re.sub(r'EDGE_BRO_IMAGE_TAG\s*=\s*[0-9.]+', f'EDGE_BRO_IMAGE_TAG={clean_ver}', content)
+        with open(env_example_path, "w") as f:
+            f.write(new_content)
+        print(f"Updated .env.example to EDGE_BRO_IMAGE_TAG={clean_ver}")
+    else:
+        print("Warning: .env.example not found")
+
     print(f"\nSuccessfully bumped version across the project to {v_ver} ({clean_ver})!")
 
 if __name__ == "__main__":

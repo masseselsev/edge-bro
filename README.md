@@ -341,6 +341,28 @@ already backs up correctly should not be marked broken over telemetry.
 
 ## Installation & Usage
 
+### Quick Start (Pre-built Release)
+
+Deploy the orchestrator without local compilation using official pre-built release images from GitHub Container Registry (`ghcr.io`):
+
+```bash
+# 1. Clone repository
+git clone --branch v1.8.0 https://github.com/masseselsev/edge-bro.git /opt/stacks/edge-bro
+cd /opt/stacks/edge-bro
+
+# 2. Configure environment
+cp .env.example .env
+nano .env   # Set passwords, ORCHESTRATOR_IP, and verify EDGE_BRO_IMAGE_TAG=1.8.0
+
+# 3. Pull pre-built images and launch (zero local compilation)
+docker compose -f docker-compose.yml pull
+docker compose -f docker-compose.yml up -d
+```
+
+> **Minimal Compose-only deployment**: If copying files without `git clone`, you only need `docker-compose.yml`, `.env`, and the `payload_client/` folder (used by the kiosk builder). Run `docker compose pull && docker compose up -d`.
+
+Open `http://<YOUR_SERVER_IP>:7777` in your browser and log in with the credentials configured in `.env`.
+
 → **[English Usage Guide](README_USAGE.md)** — step-by-step deployment, configuration, and operations manual.
 
 → **[Русская инструкция](README_USAGE_ru.md)** — подробное руководство на русском.

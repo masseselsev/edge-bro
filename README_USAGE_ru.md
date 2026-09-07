@@ -173,6 +173,26 @@ docker compose up -d
 
 ### 2.4 Запуск
 
+#### Вариант А: Запуск готового релиза (Рекомендуется для продакшена)
+
+Локальная сборка не требуется. Скачайте официальные релизные образы напрямую из GitHub Container Registry (`ghcr.io`):
+
+```bash
+docker compose -f docker-compose.yml pull
+docker compose -f docker-compose.yml up -d
+```
+
+*(Флаг `-f docker-compose.yml` указывает игнорировать файл `docker-compose.override.yml`, предназначенный только для локальной разработки.)*
+
+> **Минимальное автономное развёртывание**: Если вы разворачиваете стек без `git clone` (скопировав на сервер только `docker-compose.yml`, `.env` и каталог `payload_client/`), достаточно выполнить:
+> ```bash
+> docker compose pull && docker compose up -d
+> ```
+
+#### Вариант Б: Локальная сборка из исходников (Только разработка)
+
+Если вы редактируете исходный код локально:
+
 ```bash
 docker compose up -d --build
 ```
