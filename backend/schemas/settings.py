@@ -19,7 +19,7 @@ class ExclusionSchema(BaseModel):
 class CredentialSchema(BaseModel):
     id: str
     username: str
-    password: str
+    password: Optional[str] = None
     comment: str = ""
 
 class CredentialSummary(BaseModel):

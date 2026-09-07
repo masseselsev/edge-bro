@@ -334,11 +334,13 @@ function AppContent() {
     if (!settings) return;
     setSavingIp(true);
     try {
-      await api.post('/api/settings', { ...settings, orchestrator_ip: orchestratorIp });
+      const updated = await api.post<any>('/api/settings', { ...settings, orchestrator_ip: orchestratorIp });
+      setSettings(updated);
       localStorage.setItem(IP_PROMPT_DISMISSED_KEY, '1');
       setShowIpPromptModal(false);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error('Failed to save orchestrator IP:', err);
+      alert(err.message || 'Failed to save orchestrator IP');
     } finally {
       setSavingIp(false);
     }

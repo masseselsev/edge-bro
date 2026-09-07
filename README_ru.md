@@ -349,18 +349,18 @@ sudo usbreset 152d:0581   # или переподключите USB-кабель
 mkdir -p /opt/stacks/edge-bro && cd /opt/stacks/edge-bro
 
 # 1. Скачивание compose-файла и примера переменных (нужны только 2 файла)
-curl -fsSL https://raw.githubusercontent.com/masseselsev/edge-bro/v1.8.1/docker-compose.yml -o docker-compose.yml
-curl -fsSL https://raw.githubusercontent.com/masseselsev/edge-bro/v1.8.1/.env.example -o .env
+curl -fsSL https://raw.githubusercontent.com/masseselsev/edge-bro/v1.8.2/docker-compose.yml -o docker-compose.yml
+curl -fsSL https://raw.githubusercontent.com/masseselsev/edge-bro/v1.8.2/.env.example -o .env
 
 # 2. Настройка окружения
-nano .env   # Задайте пароли, ORCHESTRATOR_IP и проверьте EDGE_BRO_IMAGE_TAG=1.8.1
+nano .env   # Задайте пароли, ORCHESTRATOR_IP и проверьте EDGE_BRO_IMAGE_TAG=1.8.2
 
 # 3. Скачивание релизных образов и запуск (без локальной компиляции)
 docker compose pull
 docker compose up -d
 ```
 
-*(Если вы клонируете репозиторий через `git clone --branch v1.8.1 https://github.com/masseselsev/edge-bro.git /opt/stacks/edge-bro`, используйте `docker compose -f docker-compose.yml up -d` для запуска релизных образов вместо dev-окружения).*
+*(Если вы клонируете репозиторий через `git clone --branch v1.8.2 https://github.com/masseselsev/edge-bro.git /opt/stacks/edge-bro`, используйте `docker compose -f docker-compose.yml up -d` для запуска релизных образов вместо dev-окружения).*
 
 Откройте `http://<IP_СЕРВЕРА>:7777` в браузере и авторизуйтесь под суперпользователем из `.env`.
 

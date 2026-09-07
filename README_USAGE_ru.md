@@ -179,8 +179,8 @@ docker compose up -d
 
 ```bash
 # 1. Скачивание только docker-compose.yml и .env
-curl -fsSL https://raw.githubusercontent.com/masseselsev/edge-bro/v1.8.1/docker-compose.yml -o docker-compose.yml
-curl -fsSL https://raw.githubusercontent.com/masseselsev/edge-bro/v1.8.1/.env.example -o .env
+curl -fsSL https://raw.githubusercontent.com/masseselsev/edge-bro/v1.8.2/docker-compose.yml -o docker-compose.yml
+curl -fsSL https://raw.githubusercontent.com/masseselsev/edge-bro/v1.8.2/.env.example -o .env
 
 # 2. Настройка паролей и параметров
 nano .env

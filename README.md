@@ -349,18 +349,18 @@ Deploy the orchestrator without local compilation using official pre-built relea
 mkdir -p /opt/stacks/edge-bro && cd /opt/stacks/edge-bro
 
 # 1. Download compose file and sample environment (strictly 2 files needed)
-curl -fsSL https://raw.githubusercontent.com/masseselsev/edge-bro/v1.8.1/docker-compose.yml -o docker-compose.yml
-curl -fsSL https://raw.githubusercontent.com/masseselsev/edge-bro/v1.8.1/.env.example -o .env
+curl -fsSL https://raw.githubusercontent.com/masseselsev/edge-bro/v1.8.2/docker-compose.yml -o docker-compose.yml
+curl -fsSL https://raw.githubusercontent.com/masseselsev/edge-bro/v1.8.2/.env.example -o .env
 
 # 2. Configure environment
-nano .env   # Set passwords, ORCHESTRATOR_IP, and verify EDGE_BRO_IMAGE_TAG=1.8.1
+nano .env   # Set passwords, ORCHESTRATOR_IP, and verify EDGE_BRO_IMAGE_TAG=1.8.2
 
 # 3. Pull pre-built images and launch (zero local compilation)
 docker compose pull
 docker compose up -d
 ```
 
-*(Alternatively, if you clone the repo via `git clone --branch v1.8.1 https://github.com/masseselsev/edge-bro.git /opt/stacks/edge-bro`, run `docker compose -f docker-compose.yml up -d` to use production images).*
+*(Alternatively, if you clone the repo via `git clone --branch v1.8.2 https://github.com/masseselsev/edge-bro.git /opt/stacks/edge-bro`, run `docker compose -f docker-compose.yml up -d` to use production images).*
 
 Open `http://<YOUR_SERVER_IP>:7777` in your browser and log in with the credentials configured in `.env`.
 

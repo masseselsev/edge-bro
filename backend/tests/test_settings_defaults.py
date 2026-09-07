@@ -108,7 +108,11 @@ def test_new_settings_row_gets_the_curated_default_exclusions(db_session):
     assert "/var/opt/edge/*.iso" in patterns
     assert "/tmp/*" in patterns
     assert "/home/*" in patterns
-    assert len(settings.global_exclusions) == 19
+    assert "/root/.cache/*" in patterns
+    assert "/var/tmp/*" in patterns
+    assert "/var/cache/apt/archives/*" in patterns
+    assert "/swapfile" in patterns
+    assert len(settings.global_exclusions) == 25
 
 
 def test_alert_config_defaults_to_none(db_session):

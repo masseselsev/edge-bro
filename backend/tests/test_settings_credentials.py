@@ -148,3 +148,31 @@ def test_credentials_endpoint_with_no_settings_row_returns_empty_list():
         Base.metadata.drop_all(bind=engine)
         if os.path.exists(empty_db_path):
             os.remove(empty_db_path)
+
+
+def test_save_settings_roundtrip_without_passwords_preserves_stored_passwords(admin_client):
+    """When frontend updates settings (e.g. orchestrator_ip in IpPromptModal or language)
+    using the payload from GET /api/settings, bootstrap_credentials carries CredentialSummary
+    (no passwords). The POST must succeed and not blank existing stored passwords.
+    """
+    res = admin_client.get("/api/settings")
+    assert res.status_code == 200
+    payload = res.json()
+
+    # Verify passwords are not in the GET response
+    for c in payload["bootstrap_credentials"]:
+        assert "password" not in c
+
+    # Modify orchestrator_ip and POST back directly without injecting passwords
+    payload["orchestrator_ip"] = "172.23.1.123"
+    post_res = admin_client.post("/api/settings", json=payload)
+    assert post_res.status_code == 200
+    assert post_res.json()["orchestrator_ip"] == "172.23.1.123"
+
+    # Verify that stored passwords on GET /api/settings/credentials remain intact
+    creds_res = admin_client.get("/api/settings/credentials")
+    assert creds_res.status_code == 200
+    creds = {c["id"]: c for c in creds_res.json()}
+    assert creds["default"]["password"] == "s3cr3t"
+    assert creds["spare"]["password"] == "hunter2"
+

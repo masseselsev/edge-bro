@@ -27,4 +27,10 @@ DEFAULT_GLOBAL_EXCLUSIONS = [
     {"pattern": "/var/hasplm/*", "comment": "Sentinel HASP licensing data"},
     {"pattern": "/etc/hasplm/*", "comment": "Sentinel HASP licensing config"},
     {"pattern": "/var/opt/edge/*.iso", "comment": "ISO disk images"},
+    {"pattern": "/var/tmp/*", "comment": "Preserved temporary files"},
+    {"pattern": "/var/cache/apt/archives/*", "comment": "Cached APT package archives"},
+    {"pattern": "/var/crash/*", "comment": "System crash dumps"},
+    {"pattern": "/var/lib/systemd/coredump/*", "comment": "Systemd process core dumps"},
+    {"pattern": "/swapfile", "comment": "System swap file"},
+    {"pattern": "/root/.cache/*", "comment": "Root user temporary cache"},
 ]

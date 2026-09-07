@@ -51,26 +51,48 @@
 
     - name: Ensure python3/pip are installed (with dynamic proxy test and temporary fallback)
       raw: |
-        # If python3 is already available on the target node, we can proceed directly
-        if command -v python3 >/dev/null 2>&1; then
-          echo "PYTHON3_OK: Python 3 is already installed on the node."
-          exit 0
-        fi
-
         FORCE_ORCHESTRATOR="{% if force_orchestrator_proxy | default(false) | bool %}true{% else %}false{% endif %}"
         PROXY_RAW=$(apt-config dump | grep -i 'Acquire::http::Proxy ' | head -n1 | sed -E 's/.*http:\/\/([^"/]+).*/\1/')
-        if [ "$FORCE_ORCHESTRATOR" != "true" ] && [ -n "$PROXY_RAW" ]; then
+        PROXY_HOST=""
+        PROXY_PORT=""
+        if [ -n "$PROXY_RAW" ]; then
           PROXY_URL=$(echo "$PROXY_RAW" | sed -E 's/.*@//')
           PROXY_HOST=$(echo "$PROXY_URL" | cut -d: -f1)
           PROXY_PORT=$(echo "$PROXY_URL" | cut -d: -f2)
           if [ "$PROXY_PORT" = "$PROXY_HOST" ] || [ -z "$PROXY_PORT" ]; then
             PROXY_PORT=80
           fi
+        fi
+
+        disable_native_proxy() {
+          if [ -n "$PROXY_HOST" ]; then
+            for path in /etc/apt/apt.conf /etc/apt/apt.conf.d; do
+              if [ -e "$path" ]; then
+                find "$path" -type f -exec grep -q "$PROXY_HOST" {} \; -print 2>/dev/null | while read -r f; do
+                  mv "$f" "${f}.disabled"
+                done
+              fi
+            done
+          fi
+        }
+
+        install_python_if_missing() {
+          if ! command -v python3 >/dev/null 2>&1; then
+            echo "Installing python3 and python3-pip..."
+            apt-get update && apt-get install -y python3 python3-pip
+          else
+            echo "PYTHON3_OK: Python 3 is already installed on the node."
+          fi
+        }
+
+        # Tier 1: Check native proxy
+        if [ "$FORCE_ORCHESTRATOR" != "true" ] && [ -n "$PROXY_RAW" ]; then
           if timeout 2 bash -c "cat < /dev/null > /dev/tcp/$PROXY_HOST/$PROXY_PORT" 2>/dev/null; then
             echo "Proxy $PROXY_HOST:$PROXY_PORT is reachable. Using proxy."
-            apt-get update && apt-get install -y python3 python3-pip
+            install_python_if_missing
             exit 0
           fi
+          echo "Native proxy $PROXY_HOST:$PROXY_PORT is unreachable."
         fi
 
         # Tier 2: Check direct internet access or local repository
@@ -79,16 +101,8 @@
              timeout 2 bash -c "cat < /dev/null > /dev/tcp/archive.ubuntu.com/80" 2>/dev/null || \
              apt-get update -qq >/dev/null 2>&1; then
             echo "Direct connection or local repository is available."
-            if [ -n "$PROXY_RAW" ]; then
-              for path in /etc/apt/apt.conf /etc/apt/apt.conf.d; do
-                if [ -e "$path" ]; then
-                  find "$path" -type f -exec grep -q "$PROXY_HOST" {} \; -print 2>/dev/null | while read -r f; do
-                    mv "$f" "${f}.disabled"
-                  done
-                fi
-              done
-            fi
-            apt-get update && apt-get install -y python3 python3-pip
+            disable_native_proxy
+            install_python_if_missing
             exit 0
           fi
         fi
@@ -115,24 +129,26 @@
         for test_ip in $IP_LIST; do
           if timeout 2 bash -c "cat < /dev/null > /dev/tcp/$test_ip/3142" 2>/dev/null; then
             echo "Using orchestrator APT proxy at $test_ip:3142."
-            # Disable native proxy configurations temporarily
-            if [ -n "$PROXY_RAW" ]; then
-              for path in /etc/apt/apt.conf /etc/apt/apt.conf.d; do
-                if [ -e "$path" ]; then
-                  find "$path" -type f -exec grep -q "$PROXY_HOST" {} \; -print 2>/dev/null | while read -r f; do
-                    mv "$f" "${f}.disabled"
-                  done
-                fi
-              done
-            fi
+            disable_native_proxy
             echo "Acquire::http::Proxy \"http://$test_ip:3142\";" > /etc/apt/apt.conf.d/99orchestrator-proxy
-            apt-get update && apt-get install -y python3 python3-pip
+            install_python_if_missing
             PROXY_SUCCESS=true
             break
           fi
         done
 
         if [ "$PROXY_SUCCESS" = "true" ]; then
+          exit 0
+        fi
+
+        # If all tiers failed, but native proxy was unreachable, disable it so direct attempts have a chance
+        if [ -n "$PROXY_RAW" ]; then
+          echo "Disabling unreachable native proxy configuration as last resort."
+          disable_native_proxy
+        fi
+
+        if command -v python3 >/dev/null 2>&1; then
+          echo "PYTHON3_OK: Python 3 is already installed; proceeding with bootstrap."
           exit 0
         fi
 

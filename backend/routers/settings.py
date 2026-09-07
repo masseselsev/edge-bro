@@ -212,7 +212,19 @@ def update_settings(payload: schemas.SettingsBase, request: Request, db: Session
 
     # Check if bootstrap_credentials changed
     old_creds = settings.bootstrap_credentials or []
-    new_creds = [c.model_dump() for c in payload.bootstrap_credentials] if payload.bootstrap_credentials else []
+    old_creds_map = {c["id"]: c for c in old_creds if isinstance(c, dict) and "id" in c}
+    new_creds = []
+    if payload.bootstrap_credentials:
+        for c in payload.bootstrap_credentials:
+            cdict = c.model_dump()
+            # If password was not provided (e.g. payload mirrored from GET /api/settings),
+            # preserve the stored password for this credential ID so it is not blanked.
+            if cdict.get("password") is None and cdict.get("id") in old_creds_map:
+                cdict["password"] = old_creds_map[cdict["id"]].get("password", "")
+            elif cdict.get("password") is None:
+                cdict["password"] = ""
+            new_creds.append(cdict)
+
     if old_creds != new_creds:
         changes.append("Bootstrap Credentials updated")
 

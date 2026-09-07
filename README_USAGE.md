@@ -177,8 +177,8 @@ Zero local compilation or toolchain required. Pull official release images direc
 
 ```bash
 # 1. Download only docker-compose.yml and .env
-curl -fsSL https://raw.githubusercontent.com/masseselsev/edge-bro/v1.8.1/docker-compose.yml -o docker-compose.yml
-curl -fsSL https://raw.githubusercontent.com/masseselsev/edge-bro/v1.8.1/.env.example -o .env
+curl -fsSL https://raw.githubusercontent.com/masseselsev/edge-bro/v1.8.2/docker-compose.yml -o docker-compose.yml
+curl -fsSL https://raw.githubusercontent.com/masseselsev/edge-bro/v1.8.2/.env.example -o .env
 
 # 2. Configure passwords and settings
 nano .env
